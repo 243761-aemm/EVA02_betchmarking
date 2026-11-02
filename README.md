@@ -107,3 +107,4 @@ python scripts/generate_pdf_report.py
 1. **Resiliencia Documental:** **MongoDB** mantuvo degradación elástica estable (*graceful degradation*) incluso bajo contención extrema (1 CPU / 1 GB RAM, acumulando 4,872s de throttling de CPU) sin registrar ninguna caída ni OOM-Killer.
 2. **Colapso de PostgreSQL en Desanidamiento Concurrente:** En Q1 a C=50 clientes, **PostgreSQL colapsó sistemáticamente** con fallos de asignación/conexión debido al coste de desempaquetar arreglos en memoria mediante `jsonb_array_elements`.
 3. **Optimización por `work_mem`:** En ordenamiento masivo Top-K (Q2), incrementar `work_mem` de 4 MB a 64 MB aceleró PostgreSQL en **5.1×** (de 19.08s a 3.73s) al eliminar 10,728 bloques en modo *lossy* en el Bitmap Heap Scan.
+
