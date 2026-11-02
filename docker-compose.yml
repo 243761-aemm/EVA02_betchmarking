@@ -1,0 +1,305 @@
+# =============================================================================
+# Benchmarking BD - Bases de Datos en la Nube 2026
+# IT2iD - Universidad Politécnica de Chiapas
+# docker-compose.yml con perfiles de recursos parametrizados (cgroups v2)
+# =============================================================================
+#
+# Perfiles disponibles (PROFILE env var):
+#   PROFILE_A_BASELINE  -> 4 CPUs, 4096m RAM (sin contención)
+#   PROFILE_B_MEDIUM    -> 2 CPUs, 2048m RAM (contención media)
+#   PROFILE_C_SEVERE    -> 1 CPU,  1024m RAM (contención severa / throttling)
+#
+# Uso:
+#   docker compose --profile baseline up -d
+#   docker compose --profile medium   up -d
+#   docker compose --profile severe   up -d
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Extensiones YAML (anchors) para los perfiles de recursos
+# ---------------------------------------------------------------------------
+x-profile-baseline: &profile_baseline
+  cpus: "4.0"
+  mem_limit: 4096m
+  mem_swappiness: 0
+
+x-profile-medium: &profile_medium
+  cpus: "2.0"
+  mem_limit: 2048m
+  mem_swappiness: 0
+
+x-profile-severe: &profile_severe
+  cpus: "1.0"
+  mem_limit: 1024m
+  mem_swappiness: 0
+
+# ---------------------------------------------------------------------------
+# Redes
+# ---------------------------------------------------------------------------
+networks:
+  bench_net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volúmenes persistentes
+# ---------------------------------------------------------------------------
+volumes:
+  mongo_data:
+  pg_data:
+  prometheus_data:
+  grafana_data:
+
+# ===========================================================================
+# SERVICIOS
+# ===========================================================================
+services:
+
+  # -------------------------------------------------------------------------
+  # MongoDB - Motor documental (WiredTiger, latest-stable)
+  # -------------------------------------------------------------------------
+
+  ## PROFILE A - BASELINE (sin contención)
+  mongo_baseline:
+    image: mongo:latest
+    container_name: mongo_baseline
+    profiles: ["baseline"]
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4096M
+    environment:
+      MONGO_INITDB_DATABASE: benchmark
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js:ro
+    networks:
+      - bench_net
+    ports:
+      - "27017:27017"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_A_BASELINE"
+      bench.engine: "mongodb"
+
+  ## PROFILE B - MEDIUM (contención media)
+  mongo_medium:
+    image: mongo:latest
+    container_name: mongo_medium
+    profiles: ["medium"]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    environment:
+      MONGO_INITDB_DATABASE: benchmark
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js:ro
+    networks:
+      - bench_net
+    ports:
+      - "27017:27017"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_B_MEDIUM"
+      bench.engine: "mongodb"
+
+  ## PROFILE C - SEVERE (contención severa / throttling activo)
+  mongo_severe:
+    image: mongo:latest
+    container_name: mongo_severe
+    profiles: ["severe"]
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    environment:
+      MONGO_INITDB_DATABASE: benchmark
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js:ro
+    networks:
+      - bench_net
+    ports:
+      - "27017:27017"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_C_SEVERE"
+      bench.engine: "mongodb"
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL - Motor relacional con JSONB (latest-stable)
+  # -------------------------------------------------------------------------
+
+  ## PROFILE A - BASELINE
+  postgres_baseline:
+    image: postgres:latest
+    container_name: postgres_baseline
+    profiles: ["baseline"]
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4096M
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: bench_user
+      POSTGRES_PASSWORD: bench_pass
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./scripts/pg_init.sql:/docker-entrypoint-initdb.d/pg_init.sql:ro
+    networks:
+      - bench_net
+    ports:
+      - "5433:5432"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_A_BASELINE"
+      bench.engine: "postgresql"
+
+  ## PROFILE B - MEDIUM
+  postgres_medium:
+    image: postgres:latest
+    container_name: postgres_medium
+    profiles: ["medium"]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: bench_user
+      POSTGRES_PASSWORD: bench_pass
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./scripts/pg_init.sql:/docker-entrypoint-initdb.d/pg_init.sql:ro
+    networks:
+      - bench_net
+    ports:
+      - "5433:5432"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_B_MEDIUM"
+      bench.engine: "postgresql"
+
+  ## PROFILE C - SEVERE
+  postgres_severe:
+    image: postgres:latest
+    container_name: postgres_severe
+    profiles: ["severe"]
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: bench_user
+      POSTGRES_PASSWORD: bench_pass
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./scripts/pg_init.sql:/docker-entrypoint-initdb.d/pg_init.sql:ro
+    networks:
+      - bench_net
+    ports:
+      - "5433:5432"
+    mem_swappiness: 0
+    labels:
+      bench.profile: "PROFILE_C_SEVERE"
+      bench.engine: "postgresql"
+
+  # -------------------------------------------------------------------------
+  # cAdvisor - métricas de contenedor (cgroups v2)
+  # -------------------------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    profiles: ["baseline", "medium", "severe"]
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - bench_net
+    labels:
+      bench.role: "telemetry"
+
+  # -------------------------------------------------------------------------
+  # Node Exporter - métricas de host (I/O, disco, swap)
+  # -------------------------------------------------------------------------
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    profiles: ["baseline", "medium", "severe"]
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    ports:
+      - "9100:9100"
+    networks:
+      - bench_net
+    labels:
+      bench.role: "telemetry"
+
+  # -------------------------------------------------------------------------
+  # Prometheus - scrape_interval: 1s (como especifica el PDF)
+  # -------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    profiles: ["baseline", "medium", "severe"]
+    volumes:
+      - ./scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=7d"
+    ports:
+      - "9090:9090"
+    networks:
+      - bench_net
+    depends_on:
+      - cadvisor
+      - node_exporter
+    labels:
+      bench.role: "telemetry"
+
+  # -------------------------------------------------------------------------
+  # Grafana - visualización de KPIs
+  # -------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    profiles: ["baseline", "medium", "severe"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "bench2026"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - bench_net
+    depends_on:
+      - prometheus
+    labels:
+      bench.role: "visualization"
+

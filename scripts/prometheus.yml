@@ -1,0 +1,36 @@
+# =============================================================================
+# prometheus.yml - Configuración de Prometheus
+# IT2iD - Bases de Datos en la Nube 2026
+# scrape_interval: 1s (como especifica el PDF)
+# =============================================================================
+
+global:
+  scrape_interval: 1s          # Intervalo requerido por el PDF
+  evaluation_interval: 1s
+  scrape_timeout: 1s
+
+scrape_configs:
+
+  # cAdvisor - métricas de contenedor (cgroups v2)
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "container_(cpu_cfs_throttled_seconds_total|memory_rss|memory_usage_bytes|memory_working_set_bytes|cpu_usage_seconds_total)"
+        action: keep
+
+  # Node Exporter - métricas de host
+  - job_name: "node_exporter"
+    static_configs:
+      - targets: ["node_exporter:9100"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "node_(disk_.*|filesystem_.*|memory_.*|cpu_.*)"
+        action: keep
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+

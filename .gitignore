@@ -1,0 +1,27 @@
+# Entorno y archivos temporales
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Carpeta de reportes Markdown (solicitado no incluir en el repo)
+reports/
+*.tmp
+test_print.*
+playbook_extracted.txt
+
+# Dataset masivo sintético (supera el límite de 100MB de GitHub: 561MB y 658MB)
+data/orders.jsonl
+data/orders_pg.csv
+*.jsonl
+*.csv.gz
+
+# Archivos de respaldo temporales
+results/*backup*
+*.log
+.DS_Store
+Thumbs.db
